@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Jadwal keberangkatan kapal ke Kepulauan Seribu dengan fitur admin untuk mengelola kapal">
+    <meta name="author" content="xAI">
+    <title>Jadwal Keberangkatan Kapal ke Pulau Seribu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <!-- Menu di pojok kiri atas -->
+    <div class="fixed top-0 left-0 p-4 z-50">
+        <button id="menuButton" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Buka menu">Menu</button>
+        <div id="menuDropdown" class="hidden absolute mt-2 w-48 bg-white shadow-lg rounded-lg">
+            <div class="border-b border-gray-200">
+                <button id="shipsMenu" class="w-full text-left px-4 py-2 text-blue-600 hover:bg-gray-100 focus:outline-none focus:bg-gray-100" aria-label="Lihat daftar kapal">Kapal</button>
+                <div id="shipsList" class="hidden pl-4 pb-2" aria-label="Daftar kapal"></div>
+            </div>
+            <div>
+                <button id="islandsMenu" class="w-full text-left px-4 py-2 text-blue-600 hover:bg-gray-100 focus:outline-none focus:bg-gray-100" aria-label="Lihat daftar pulau">Pulau</button>
+                <div id="islandsList" class="hidden pl-4 pb-2" aria-label="Daftar pulau"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tombol Login/Logout Admin di pojok kanan atas -->
+    <div class="fixed top-0 right-0 p-4 z-50">
+        <button id="adminButton" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500" aria-label="Login sebagai admin">Login Admin</button>
+    </div>
+
+    <div class="container mx-auto px-4 py-8 mt-16">
+        <h1 class="text-3xl font-bold text-center mb-8 text-blue-800">Jadwal Keberangkatan Kapal ke Pulau Pariwisata di Kepulauan Seribu</h1>
+        
+        <!-- Tombol Tambah Kapal (hanya muncul di mode admin) -->
+        <div id="addShipButton" class="hidden mb-4">
+            <button class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500" onclick="showAddShipModal()" aria-label="Tambah kapal baru">Tambah Kapal</button>
+        </div>
+
+        <div class="bg-white shadow-md rounded-lg overflow-x-auto">
+            <table class="w-full text-left" aria-label="Tabel jadwal keberangkatan kapal">
+                <thead class="bg-blue-600 text-white">
+                    <tr>
+                        <th class="py-3 px-4" scope="col">Nama Kapal</th>
+                        <th class="py-3 px-4" scope="col">Tujuan</th>
+                        <th class="py-3 px-4" scope="col">Tempat Asal</th>
+                        <th class="py-3 px-4" scope="col">Tanggal</th>
+                        <th class="py-3 px-4" scope="col">Waktu</th>
+                        <th class="py-3 px-4" scope="col">Harga</th>
+                        <th class="py-3 px-4" scope="col">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="scheduleTable" class="divide-y divide-gray-200"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal untuk detail kapal, pembelian, edit, tambah, atau login admin -->
+    <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50" role="dialog" aria-modal="true">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 id="modalTitle" class="text-xl font-bold mb-4"></h2>
+            <div id="modalContent" class="mb-4"></div>
+            <div id="modalActions" class="flex justify-end space-x-4">
+                <button id="closeButton" class="bg-gray-300 text-black px-4 py-2 rounded hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500" aria-label="Tutup modal">Tutup</button>
+                <button id="confirmButton" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 hidden" aria-label="Konfirmasi pembelian">Konfirmasi</button>
+                <button id="saveButton" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 hidden" aria-label="Simpan perubahan">Simpan</button>
+                <button id="loginButton" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 hidden" aria-label="Login admin">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data jadwal kapal dengan detail tambahan dan URL Wikipedia (contoh)
+        let schedules = [
+            { 
+                name: "KM Wisata Bahari", 
+                destination: "Pulau Tidung", 
+                origin: "Muara Angke", 
+                date: "2025-04-25", 
+                time: "07:00", 
+                price: 50000,
+                details: { type: "Ferry Kayu", capacity: 150, facilities: "Kursi kayu, toilet sederhana" },
+                wikiUrl: "https://id.wikipedia.org/wiki/Pulau_Tidung"
+            },
+            { 
+                name: "Speedboat Marina", 
+                destination: "Pulau Pari", 
+                origin: "Marina Ancol", 
+                date: "2025-04-25", 
+                time: "08:00", 
+                price: 150000,
+                details: { type: "Speedboat", capacity: 20, facilities: "Kursi empuk, AC" },
+                wikiUrl: "https://id.wikipedia.org/wiki/Pulau_Pari"
+            },
+            { 
+                name: "KM Nusantara Jaya", 
+                destination: "Pulau Pramuka", 
+                origin: "Muara Angke", 
+                date: "2025-04-26", 
+                time: "09:00", 
+                price: 60000,
+                details: { type: "Ferry Kayu", capacity: 200, facilities: "Kursi kayu, kios makanan" },
+                wikiUrl: "https://id.wikipedia.org/wiki/Pulau_Pramuka"
+            },
+            { 
+                name: "Speedboat Harapan", 
+                destination: "Pulau Harapan", 
+                origin: "Marina Ancol", 
+                date: "2025-04-26", 
+                time: "08:30", 
+                price: 170000,
+                details: { type: "Speedboat", capacity: 25, facilities: "Kursi empuk, AC, life jacket" },
+                wikiUrl: "https://id.wikipedia.org/wiki/Pulau_Harapan"
+            }
+        ];
+
+        let isAdminMode = false; // Status mode admin
+        const ADMIN_PASSWORD = "admin123"; // Kata sandi admin (ganti di produksi dengan backend)
+
+        // Fungsi untuk mengisi tabel
+        function populateTable() {
+            const tableBody = document.getElementById("scheduleTable");
+            tableBody.innerHTML = ""; // Kosongkan tabel sebelum diisi ulang
+            schedules.forEach((schedule, index) => {
+                const row = document.createElement("tr");
+                row.className = "hover:bg-gray-50";
+                row.innerHTML = `
+                    <td class="py-3 px-4">
+                        <span class="ship-name text-blue-600 hover:underline cursor-pointer" data-index="${index}" role="button" tabindex="0" aria-label="Lihat detail kapal ${schedule.name}">${schedule.name}</span>
+                    </td>
+                    <td class="py-3 px-4">
+                        <a href="${schedule.wikiUrl}" target="_blank" class="text-blue-600 hover:underline" aria-label="Kunjungi halaman Wikipedia ${schedule.destination}">${schedule.destination}</a>
+                    </td>
+                    <td class="py-3 px-4">${schedule.origin}</td>
+                    <td class="py-3 px-4">${schedule.date}</td>
+                    <td class="py-3 px-4">${schedule.time}</td>
+                    <td class="py-3 px-4">Rp ${schedule.price.toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-4 flex space-x-2">
+                        <button class="buy-button bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500" data-index="${index}" aria-label="Beli tiket untuk ${schedule.name}">Beli Tiket</button>
+                        ${isAdminMode ? `<button class="edit-button bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500" data-index="${index}" aria-label="Edit jadwal ${schedule.name}">Edit</button>` : ""}
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            // Event listener untuk nama kapal, tombol beli, dan edit
+            document.querySelectorAll(".ship-name").forEach(name => {
+                name.addEventListener("click", showShipDetails);
+                name.addEventListener("keypress", (e) => {
+                    if (e.key === "Enter") showShipDetails(e);
+                });
+            });
+            document.querySelectorAll(".buy-button").forEach(button => {
+                button.addEventListener("click", showBuyModal);
+            });
+            if (isAdminMode) {
+                document.querySelectorAll(".edit-button").forEach(button => {
+                    button.addEventListener("click", showEditModal);
+                });
+            }
+        }
+
+        // Fungsi untuk mengisi menu
+        function populateMenu() {
+            const shipsList = document.getElementById("shipsList");
+            const islandsList = document.getElementById("islandsList");
+
+            // Kosongkan daftar sebelum diisi ulang
+            shipsList.innerHTML = "";
+            islandsList.innerHTML = "";
+
+            // Daftar kapal
+            const uniqueShips = [...new Set(schedules.map(s => s.name))];
+            uniqueShips.forEach(ship => {
+                const div = document.createElement("div");
+                div.innerHTML = `<span class="text-gray-700 hover:text-blue-600 cursor-pointer" role="button" tabindex="0" aria-label="Lihat detail kapal ${ship}">${ship}</span>`;
+                div.addEventListener("click", () => showShipDetailsFromMenu(ship));
+                div.addEventListener("keypress", (e) => {
+                    if (e.key === "Enter") showShipDetailsFromMenu(ship);
+                });
+                shipsList.appendChild(div);
+            });
+
+            // Daftar pulau
+            const uniqueIslands = [...new Set(schedules.map(s => ({ name: s.destination, url: s.wikiUrl })))];
+            uniqueIslands.forEach(island => {
+                const div = document.createElement("div");
+                div.innerHTML = `<a href="${island.url}" target="_blank" class="text-gray-700 hover:text-blue-600" aria-label="Kunjungi halaman Wikipedia ${island.name}">${island.name}</a>`;
+                islandsList.appendChild(div);
+            });
+        }
+
+        // Fungsi untuk menampilkan detail kapal dari menu
+        function showShipDetailsFromMenu(shipName) {
+            const schedule = schedules.find(s => s.name === shipName);
+            const modal = document.getElementById("modal");
+            const modalTitle = document.getElementById("modalTitle");
+            const modalContent = document.getElementById("modalContent");
+            const confirmButton = document.getElementById("confirmButton");
+            const saveButton = document.getElementById("saveButton");
+            const loginButton = document.getElementById("loginButton");
+            const closeButton = document.getElementById("closeButton");
+
+            modalTitle.textContent = `Detail Kapal: ${schedule.name}`;
+            modalContent.innerHTML = `
+                <strong>Tipe Kapal:</strong> ${schedule.details.type}<br>
+                <strong>Kapasitas:</strong> ${schedule.details.capacity} penumpang<br>
+                <strong>Fasilitas:</strong> ${schedule.details.facilities}<br>
+                <strong>Tujuan:</strong> <a href="${schedule.wikiUrl}" target="_blank" class="text-blue-600 hover:underline" aria-label="Kunjungi halaman Wikipedia ${schedule.destination}">${schedule.destination}</a><br>
+                <strong>Tempat Asal:</strong> ${schedule.origin}
+            `;
+            confirmButton.classList.add("hidden");
+            saveButton.classList.add("hidden");
+            loginButton.classList.add("hidden");
+            modal.classList.remove("hidden");
+
+            closeButton.onclick = () => modal.classList.add("hidden");
+        }
+
+        // Fungsi untuk menampilkan detail kapal dari tabel
+        function showShipDetails(event) {
+            const index = event.target.getAttribute("data-index");
+            const schedule = schedules[index];
+            const modal = document.getElementById("modal");
+            const modalTitle = document.getElementById("modalTitle");
+            const modalContent = document.getElementById("modalContent");
+            const confirmButton = document.getElementById("confirmButton");
+            const saveButton = document.getElementById("saveButton");
+            const loginButton = document.getElementById("loginButton");
+            const closeButton = document.getElementById("closeButton");
+
+            modalTitle.textContent = `Detail Kapal: ${schedule.name}`;
+            modalContent.innerHTML = `
+                <strong>Tipe Kapal:</strong> ${schedule.details.type}<br>
+                <strong>Kapasitas:</strong> ${schedule.details.capacity} penumpang<br>
+                <strong>Fasilitas:</strong> ${schedule.details.facilities}<br>
+                <strong>Tujuan:</strong> <a href="${schedule.wikiUrl}" target="_blank" class="text-blue-600 hover:underline" aria-label="Kunjungi halaman Wikipedia ${schedule.destination}">${schedule.destination}</a><br>
+                <strong>Tempat Asal:</strong> ${schedule.origin}
+            `;
+            confirmButton.classList.add("hidden");
+            saveButton.classList.add("hidden");
+            loginButton.classList.add("hidden");
+            modal.classList.remove("hidden");
+
+            closeButton.onclick = () => modal.classList.add("hidden");
+        }
+
+        // Fungsi untuk menampilkan modal pembelian
+        function showBuyModal(event) {
+            const index = event.target.getAttribute("data-index");
+            const schedule = schedules[index];
+            const modal = document.getElementById("modal");
+            const modalTitle = document.getElementById("modalTitle");
+            const modalContent = document.getElementById("modalContent");
+            const confirmButton = document.getElementById("confirmButton");
+            const saveButton = document.getElementById("saveButton");
+            const loginButton = document.getElementById("loginButton");
+            const closeButton = document.getElementById("closeButton");
+
+            modalTitle.textContent = "Konfirmasi Pembelian Tiket";
+            modalContent.innerHTML = `
+                Anda akan membeli tiket untuk:<br>
+                <strong>Kapal:</strong> ${schedule.name}<br>
+                <strong>Tujuan:</strong> <a href="${schedule.wikiUrl}" target="_blank" class="text-blue-600 hover:underline" aria-label="Kunjungi halaman Wikipedia ${schedule.destination}">${schedule.destination}</a><br>
+                <strong>Tempat Asal:</strong> ${schedule.origin}<br>
+                <strong>Tanggal:</strong> ${schedule.date}<br>
+                <strong>Waktu:</strong> ${schedule.time}<br>
+                <strong>Harga:</strong> Rp ${schedule.price.toLocaleString('id-ID')}
+            `;
+            confirmButton.classList.remove("hidden");
+            saveButton.classList.add("hidden");
+            loginButton.classList.add("hidden");
+            modal.classList.remove("hidden");
+
+            closeButton.onclick = () => modal.classList.add("hidden");
+            confirmButton.onclick = () => {
+                alert(`Pembelian tiket untuk ${schedule.name} ke ${schedule.destination} berhasil!`);
+                modal.classList.add("hidden");
+            };
+        }
+
+        // Fungsi untuk menampilkan modal edit jadwal (mode admin)
+        function showEditModal(event) {
+            const index = event.target.getAttribute("data-index");
+            const schedule = schedules[index];
+            const modal = document.getElementById("modal");
+            const modalTitle = document.getElementById("modalTitle");
+            const modalContent = document.getElementById("modalContent");
+            const confirmButton = document.getElementById("confirmButton");
+            const saveButton = document.getElementById("saveButton");
+            const loginButton = document.getElementById("loginButton");
+            const closeButton = document.getElementById("closeButton");
+
+            modalTitle.textContent = `Edit Jadwal: ${schedule.name}`;
+            modalContent.innerHTML = `
+                <label class="block mb-2"><strong>Nama Kapal:</strong>
+                    <input type="text" id="editName" value="${schedule.name}" class="w-full p-2 border rounded" aria-label="Nama kapal">
+                </label>
+                <label class="block mb-2"><strong>Tujuan:</strong>
+                    <input type="text" id="editDestination" value="${schedule.destination}" class="w-full p-2 border rounded" aria-label="Tujuan kapal">
+                </label>
+                <label class="block mb-2"><strong>Tempat Asal:</strong>
+                    <input type="text" id="editOrigin" value="${schedule.origin}" class="w-full p-2 border rounded" aria-label="Tempat asal kapal">
+                </label>
+                <label class="block mb-2"><strong>Tanggal:</strong>
+                    <input type="date" id="editDate" value="${schedule.date}" class="w-full p-2 border rounded" aria-label="Tanggal keberangkatan">
+                </label>
+                <label class="block mb-2"><strong>Waktu:</strong>
+                    <input type="time" id="editTime" value="${schedule.time}" class="w-full p-2 border rounded" aria-label="Waktu keberangkatan">
+                </label>
+                <label class="block mb-2"><strong>Harga (Rp):</strong>
+                    <input type="number" id="editPrice" value="${schedule.price}" class="w-full p-2 border rounded" min="0" step="1000" aria-label="Harga tiket">
+                </label>
+            `;
+            confirmButton.classList.add("hidden");
+            saveButton.classList.remove("hidden");
+            loginButton.classList.add("hidden");
+            modal.classList.remove("hidden");
+
+            closeButton.onclick = () => modal.classList.add("hidden");
+            saveButton.onclick = () => {
+                const newName = document.getElementById("editName").value;
+                const newDestination = document.getElementById("editDestination").value;
+                const newOrigin = document.getElementById("editOrigin").value;
+                const newDate = document.getElementById("editDate").value;
+                const newTime = document.getElementById("editTime").value;
+                const newPrice = parseInt(document.getElementById("editPrice").value);
+
+                if (newName && newDestination && newOrigin && newDate && newTime && !isNaN(newPrice) && newPrice >= 0) {
+                    schedules[index].name = newName;
+                    schedules[index].destination = newDestination;
+                    schedules[index].origin = newOrigin;
+                    schedules[index].date = newDate;
+                    schedules[index].time = newTime;
+                    schedules[index].price = newPrice;
+                    // URL Wikipedia tidak diubah karena bergantung pada tujuan
+                    populateTable(); // Perbarui tabel
+                    populateMenu(); // Perbarui menu
+                    modal.classList.add("hidden");
+                    alert(`Jadwal untuk ${newName} telah diperbarui!`);
+                } else {
+                    alert("Semua field harus diisi dengan benar! Harga harus angka positif.");
+                }
+            };
+        }
+
+        // Fungsi untuk menampilkan modal tambah kapal (mode admin)
+        function showAddShipModal() {
+            const modal = document.getElementById("modal");
+            const modalTitle = document.getElementById("modalTitle");
+            const modalContent = document.getElementById("modalContent");
+            const confirmButton = document.getElementById("confirmButton");
+            const saveButton = document.getElementById("saveButton");
+            const loginButton = document.getElementById("loginButton");
+            const closeButton = document.getElementById("closeButton");
+
+            modalTitle.textContent = "Tambah Kapal Baru";
+            modalContent.innerHTML = `
+                <label class="block mb-2"><strong>Nama Kapal:</strong>
+                    <input type="text" id="addName" class="w-full p-2 border rounded" placeholder="Contoh: KM Baru" aria-label="Nama kapal baru">
+                </label>
+                <label class="block mb-2"><strong>Tujuan:</strong>
+                    <input type="text" id="addDestination" class="w-full p-2 border rounded" placeholder="Contoh: Pulau Baru" aria-label="Tujuan kapal baru">
+                </label>
+                <label class="block mb-2"><strong>Tempat Asal:</strong>
+                    <input type="text" id="addOrigin" class="w-full p-2 border rounded" placeholder="Contoh: Marina Ancol" aria-label="Tempat asal kapal baru">
+                </label>
+                <label class="block mb-2"><strong>Tanggal:</strong>
+                    <input type="date" id="addDate" class="w-full p-2 border rounded" aria-label="Tanggal keberangkatan kapal baru">
+                </label>
+                <label class="block mb-2"><strong>Waktu:</strong>
+                    <input type="time" id="addTime" class="w-full p-2 border rounded" aria-label="Waktu keberangkatan kapal baru">
+                </label>
+                <label class="block mb-2"><strong>Harga (Rp):</strong>
+                    <input type="number" id="addPrice" class="w-full p-2 border rounded" min="0" step="1000" placeholder="Contoh: 100000" aria-label="Harga tiket kapal baru">
+                </label>
+                <label class="block mb-2"><strong>Tipe Kapal:</strong>
+                    <input type="text" id="addType" class="w-full p-2 border rounded" placeholder="Contoh: Speedboat" aria-label="Tipe kapal baru">
+                </label>
+                <label class="block mb-2"><strong>Kapasitas (Penumpang):</strong>
+                    <input type="number" id="addCapacity" class="w-full p-2 border rounded" min="1" placeholder="Contoh: 50" aria-label="Kapasitas kapal baru">
+                </label>
+                <label class="block mb-2"><strong>Fasilitas:</strong>
+                    <input type="text" id="addFacilities" class="w-full p-2 border rounded" placeholder="Contoh: AC, toilet" aria-label="Fasilitas kapal baru">
+                </label>
+            `;
+            confirmButton.classList.add("hidden");
+            saveButton.classList.remove("hidden");
+            loginButton.classList.add("hidden");
+            modal.classList.remove("hidden");
+
+            closeButton.onclick = () => modal.classList.add("hidden");
+            saveButton.onclick = () => {
+                const newName = document.getElementById("addName").value;
+                const newDestination = document.getElementById("addDestination").value;
+                const newOrigin = document.getElementById("addOrigin").value;
+                const newDate = document.getElementById("addDate").value;
+                const newTime = document.getElementById("addTime").value;
+                const newPrice = parseInt(document.getElementById("addPrice").value);
+                const newType = document.getElementById("addType").value;
+                const newCapacity = parseInt(document.getElementById("addCapacity").value);
+                const newFacilities = document.getElementById("addFacilities").value;
+
+                if (
+                    newName &&
+                    newDestination &&
+                    newOrigin &&
+                    newDate &&
+                    newTime &&
+                    !isNaN(newPrice) && newPrice >= 0 &&
+                    newType &&
+                    !isNaN(newCapacity) && newCapacity > 0 &&
+                    newFacilities
+                ) {
+                    schedules.push({
+                        name: newName,
+                        destination: newDestination,
+                        origin: newOrigin,
+                        date: newDate,
+                        time: newTime,
+                        price: newPrice,
+                        details: {
+                            type: newType,
+                            capacity: newCapacity,
+                            facilities: newFacilities
+                        },
+                        wikiUrl: "#" // Default, karena tujuan baru belum punya URL Wikipedia
+                    });
+                    populateTable(); // Perbarui tabel
+                    populateMenu(); // Perbarui menu
+                    modal.classList.add("hidden");
+                    alert(`Kapal ${newName} telah ditambahkan!`);
+                } else {
+                    alert("Semua field harus diisi dengan benar! Harga dan kapasitas harus angka positif.");
+                }
+            };
+        }
+
+        // Fungsi untuk menampilkan modal login admin
+        function showAdminLoginModal() {
+            const modal = document.getElementById("modal");
+            const modalTitle = document.getElementById("modalTitle");
+            const modalContent = document.getElementById("modalContent");
+            const confirmButton = document.getElementById("confirmButton");
+            const saveButton = document.getElementById("saveButton");
+            const loginButton = document.getElementById("loginButton");
+            const closeButton = document.getElementById("closeButton");
+
+            modalTitle.textContent = "Login Admin";
+            modalContent.innerHTML = `
+                <label class="block mb-2"><strong>Kata Sandi:</strong>
+                    <input type="password" id="adminPassword" class="w-full p-2 border rounded" placeholder="Masukkan kata sandi" aria-label="Kata sandi admin">
+                </label>
+            `;
+            confirmButton.classList.add("hidden");
+            saveButton.classList.add("hidden");
+            loginButton.classList.remove("hidden");
+            modal.classList.remove("hidden");
+
+            closeButton.onclick = () => modal.classList.add("hidden");
+            loginButton.onclick = () => {
+                const password = document.getElementById("adminPassword").value;
+                if (password === ADMIN_PASSWORD) {
+                    isAdminMode = true;
+                    updateAdminButton();
+                    populateTable(); // Perbarui tabel untuk menampilkan tombol Edit
+                    document.getElementById("addShipButton").classList.remove("hidden");
+                    modal.classList.add("hidden");
+                    alert("Login admin berhasil!");
+                } else {
+                    alert("Kata sandi salah!");
+                }
+            };
+        }
+
+        // Fungsi untuk memperbarui tombol admin (Login/Logout)
+        function updateAdminButton() {
+            const adminButton = document.getElementById("adminButton");
+            if (isAdminMode) {
+                adminButton.textContent = "Logout Admin";
+                adminButton.classList.remove("bg-red-500", "hover:bg-red-600");
+                adminButton.classList.add("bg-green-500", "hover:bg-green-600");
+                adminButton.setAttribute("aria-label", "Logout dari mode admin");
+            } else {
+                adminButton.textContent = "Login Admin";
+                adminButton.classList.remove("bg-green-500", "hover:bg-green-600");
+                adminButton.classList.add("bg-red-500", "hover:bg-red-600");
+                adminButton.setAttribute("aria-label", "Login sebagai admin");
+            }
+        }
+
+        // Event listener untuk tombol admin (Login/Logout)
+        const adminButton = document.getElementById("adminButton");
+        adminButton.addEventListener("click", () => {
+            if (isAdminMode) {
+                isAdminMode = false;
+                updateAdminButton();
+                populateTable(); // Perbarui tabel untuk menyembunyikan tombol Edit
+                document.getElementById("addShipButton").classList.add("hidden");
+                alert("Logout admin berhasil!");
+            } else {
+                showAdminLoginModal();
+            }
+        });
+
+        // Event listener untuk menu
+        const menuButton = document.getElementById("menuButton");
+        const menuDropdown = document.getElementById("menuDropdown");
+        const shipsMenu = document.getElementById("shipsMenu");
+        const islandsMenu = document.getElementById("islandsMenu");
+        const shipsList = document.getElementById("shipsList");
+        const islandsList = document.getElementById("islandsList");
+
+        menuButton.addEventListener("click", () => {
+            menuDropdown.classList.toggle("hidden");
+        });
+
+        shipsMenu.addEventListener("click", () => {
+            shipsList.classList.toggle("hidden");
+        });
+
+        islandsMenu.addEventListener("click", () => {
+            islandsList.classList.toggle("hidden");
+        });
+
+        // Tutup menu jika klik di luar
+        document.addEventListener("click", (event) => {
+            if (!menuButton.contains(event.target) && !menuDropdown.contains(event.target)) {
+                menuDropdown.classList.add("hidden");
+                shipsList.classList.add("hidden");
+                islandsList.classList.add("hidden");
+            }
+        });
+
+        // Panggil fungsi saat halaman dimuat
+        window.onload = () => {
+            populateTable();
+            populateMenu();
+        };
+    </script>
+</body>
+</html>
