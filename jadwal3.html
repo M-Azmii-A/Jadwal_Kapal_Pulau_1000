@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Jadwal dan Tiket Pulau Seribu">
+    <meta name="author" content="xAI">
+    <title>1000 Tiket - Jadwal dan Tiket Pulau Seribu</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <style>
+        /* Reset dasar */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f3f4f6;
+            min-height: 100vh;
+        }
+        
+        /* Style Header */
+        .header-main {
+            background-color: #b91c1c;
+            color: white;
+            padding: 2.5rem 1rem;
+            text-align: center;
+        }
+
+        .header-main h1 {
+            font-size: 2.8rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-main p {
+            font-size: 1.2rem;
+        }
+
+        .nav-bar {
+            background-color: white;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .nav-bar a {
+            color: #b91c1c;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 0 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .nav-bar a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .container h1.page-title {
+            font-size: 1.5rem;
+            text-align: center;
+            color: #1f2937;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Tombol */
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            border: none;
+            cursor: pointer;
+            color: white;
+            font-size: 0.9rem;
+            display: inline-block;
+            transition: background-color 0.2s;
+        }
+
+        .btn-blue { background-color: #2563eb; }
+        .btn-green { background-color: #22c55e; }
+        .btn-yellow { background-color: #f59e0b; }
+        .btn-gray { background-color: #d1d5db; color: #1f2937; }
+
+        /* Tabel */
+        .table-wrapper {
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 0.25rem;
+            overflow-x: auto;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        thead { background-color: #2563eb; color: white; }
+        th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        tbody tr:hover { background-color: #f9fafb; }
+        .text-blue { color: #2563eb; }
+        .text-blue:hover { text-decoration: underline; }
+        .action-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+        /* Modal */
+        .modal {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background-color: white; padding: 1rem; border-radius: 0.25rem;
+            width: 90%; max-width: 56rem;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-content h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+        .modal-content label { display: block; margin-bottom: 0.5rem; font-weight: bold;}
+        .modal-content input, .modal-content select {
+            width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 0.25rem; margin-top: 0.25rem;
+        }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+        .hidden { display: none; }
+        .passenger-form { border-top: 2px solid #e5e7eb; margin-top: 1rem; padding-top: 1rem; }
+        .profile-view { background-color: #f9fafb; padding: 1rem; border-radius: 0.25rem; margin-bottom: 1rem; }
+        .profile-view p { margin-bottom: 0.5rem; }
+
+        @media (max-width: 640px) {
+            .nav-bar a { margin: 0.2rem 0.5rem; }
+            .action-buttons { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header-main">
+        <h1>1000 Tiket</h1>
+        <p>Jadwal dan Tiket Pulau Seribu</p>
+    </header>
+    
+    <nav class="nav-bar">
+        <a id="navLoginLink">Login</a>
+        <a id="navProfileLink" class="hidden">Profil</a>
+        <a id="navKapalLink">Kapal</a>
+        <a id="navPulauLink">Pulau</a>
+        <a id="navAllTicketsLink" class="hidden">Tiket Terpesan</a>
+        <a id="navMyTicketsLink" class="hidden">Tiket Saya</a>
+    </nav>
+
+    <div class="container">
+        <h1 class="page-title">Jadwal Keberangkatan Kapal ke Pulau Pariwisata</h1>
+        <div id="addShipButton" class="hidden" style="margin-bottom: 1rem;">
+            <button class="btn btn-blue" onclick="showAddScheduleModal()">Tambah Jadwal</button>
+        </div>
+        <div class="table-wrapper">
+            <table aria-label="Tabel jadwal keberangkatan kapal">
+                <thead>
+                    <tr>
+                        <th>Nama Kapal</th><th>Tujuan</th><th>Tempat Asal</th><th>Tanggal</th><th>Waktu</th>
+                        <th>Harga</th><th>Status Keberangkatan</th><th>Status Persetujuan</th><th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="scheduleTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 id="modalTitle"></h2>
+            <div id="modalContent"></div>
+            <div id="modalActions" class="modal-actions">
+                <button id="closeButton" class="btn btn-gray">Tutup</button>
+                <button id="submitQuantityButton" class="btn btn-blue hidden">Lanjutkan</button>
+                <button id="submitPersonalDataButton" class="btn btn-blue hidden">Lanjutkan</button>
+                <button id="submitPaymentButton" class="btn btn-blue hidden">Lanjutkan</button>
+                <button id="confirmButton" class="btn btn-blue hidden">Konfirmasi Pesanan</button>
+                <button id="loginActionButton" class="btn btn-blue hidden">Login</button>
+                <button id="registerButton" class="btn btn-yellow hidden">Daftar</button>
+                <button id="submitRegisterButton" class="btn btn-green hidden">Buat Akun</button>
+                <button id="saveScheduleButton" class="btn btn-green hidden">Simpan Jadwal</button>
+                <button id="saveProfileButton" class="btn btn-green hidden">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data
+        let schedules = [
+            { name: "KM Wisata Bahari", destination: "Pulau Tidung", origin: "Muara Angke", date: "2025-07-01", time: "07:00", price: 50000, details: { type: "Ferry Kayu", capacity: 150, facilities: "Kursi kayu, toilet sederhana" }, wikiUrl: "https://id.wikipedia.org/wiki/Pulau_Tidung" },
+            { name: "Speedboat Marina", destination: "Pulau Pari", origin: "Marina Ancol", date: "2025-07-01", time: "08:00", price: 150000, details: { type: "Speedboat", capacity: 20, facilities: "Kursi empuk, AC" }, wikiUrl: "https://id.wikipedia.org/wiki/Pulau_Pari" },
+            { name: "KM Nusantara Jaya", destination: "Pulau Pramuka", origin: "Muara Angke",  date: "2025-06-30",  time: "09:00",  price: 60000, details: { type: "Ferry Kayu", capacity: 200, facilities: "Kursi kayu, kios makanan" },wikiUrl: "https://id.wikipedia.org/wiki/Pulau_Pramuka", departureStatus: "Menunggu", approvalStatus: "Menunggu Persetujuan", assignedCaptain: "Kapten Default"},
+            { name: "Speedboat Harapan", destination: "Pulau Harapan",  origin: "Marina Ancol",  date: "2025-06-30",  time: "08:30",  price: 170000, details: { type: "Speedboat", capacity: 25, facilities: "Kursi empuk, AC, life jacket" }, wikiUrl: "https://id.wikipedia.org/wiki/Pulau_Harapan", departureStatus: "Menunggu",approvalStatus: "Menunggu Persetujuan", assignedCaptain: "Kapten Default"}
+        ].map(s => ({...s, departureStatus: "Menunggu", approvalStatus: "Menunggu Persetujuan"}));
+
+        let isAdminMode = false, isUserLoggedIn = false, isCaptainMode = false, isDishubMode = false, isCheckerMode = false;
+        let currentUser = null;
+        const ADMIN_CREDENTIALS = { username: "admin", password: "admin123" };
+        let users = [{ username: "user", password: "user123", email: "user@example.com", phone: "081234567890" }];
+        let captains = [{ username: "kapten", password: "kapten123" }];
+        let dishub = [{ username: "dishub", password: "dishub123" }];
+        let checkers = [{ username: "checker", password: "checker123" }];
+        let tickets = [];
+        let currentBuyIndex = null;
+        let currentEditIndex = null;
+        let tempPurchaseData = {};
+        const modal = document.getElementById('modal');
+
+        // === FUNGSI TAMPILAN & UTILITAS ===
+        function populateTable() {
+            const tableBody = document.getElementById("scheduleTable");
+            tableBody.innerHTML = "";
+            schedules.forEach((schedule, index) => {
+                const row = document.createElement("tr");
+                const showBuyButton = !isAdminMode && !isCaptainMode && !isDishubMode && !isCheckerMode;
+                row.innerHTML = `
+                    <td><span class="text-blue hover:underline cursor-pointer" onclick="showShipDetails(${index})">${schedule.name}</span></td>
+                    <td><a href="${schedule.wikiUrl}" target="_blank" class="text-blue hover:underline">${schedule.destination}</a></td>
+                    <td>${schedule.origin}</td><td>${schedule.date}</td><td>${schedule.time}</td>
+                    <td>Rp ${schedule.price.toLocaleString('id-ID')}</td><td>${schedule.departureStatus}</td><td>${schedule.approvalStatus}</td>
+                    <td class="action-buttons">
+                        ${showBuyButton ? `<button class="btn btn-green buy-button" data-index="${index}">Beli Tiket</button>` : ''}
+                        ${isAdminMode ? `<button class="btn btn-yellow edit-button" data-index="${index}">Edit</button>` : ""}
+                    </td>`;
+                tableBody.appendChild(row);
+            });
+            attachTableEventListeners();
+        }
+        
+        function updateNavBar() {
+            const navLoginLink = document.getElementById('navLoginLink');
+            const navMyTicketsLink = document.getElementById('navMyTicketsLink');
+            const navProfileLink = document.getElementById('navProfileLink');
+            const navAllTicketsLink = document.getElementById('navAllTicketsLink'); 
+            const isLoggedIn = isUserLoggedIn || isAdminMode || isCaptainMode || isDishubMode || isCheckerMode;
+            navLoginLink.textContent = isLoggedIn ? 'Logout' : 'Login';
+            navMyTicketsLink.classList.toggle('hidden', !isUserLoggedIn);
+            navProfileLink.classList.toggle('hidden', !isUserLoggedIn);
+            const canViewAllTickets = isAdminMode || isCaptainMode || isDishubMode || isCheckerMode;
+            navAllTicketsLink.classList.toggle('hidden', !canViewAllTickets);
+        }
+
+        function generateTicketCode() {
+            return `TICKET-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+        }
+
+        // === FUNGSI MODAL ===
+        function showModal(title, content, buttonIds = []) {
+            modal.querySelector('#modalTitle').textContent = title;
+            modal.querySelector('#modalContent').innerHTML = content;
+            modal.querySelectorAll('#modalActions .btn').forEach(btn => btn.classList.add('hidden'));
+            buttonIds.forEach(id => document.getElementById(id)?.classList.remove('hidden'));
+            document.getElementById('closeButton').classList.remove('hidden');
+            modal.classList.remove('hidden');
+        }
+        
+        function showShipDetails(index) {
+            const schedule = schedules[index];
+            const content = `<strong>Tipe Kapal:</strong> ${schedule.details.type}<br><strong>Kapasitas:</strong> ${schedule.details.capacity} penumpang<br><strong>Fasilitas:</strong> ${schedule.details.facilities}`;
+            showModal(`Detail Kapal: ${schedule.name}`, content);
+        }
+
+        function showShipListModal() {
+            const uniqueShips = [...new Set(schedules.map(s => s.name))];
+            let listHtml = '<div style="padding:1rem;">' + uniqueShips.map(shipName => 
+                `<div style="padding:0.4rem 0;"><span class="text-blue hover:underline cursor-pointer" onclick="showShipDetailsFromMenu('${shipName}')">${shipName}</span></div>`
+            ).join('') + '</div>';
+            showModal('Daftar Kapal', listHtml);
+        }
+
+        function showIslandListModal() {
+            const uniqueIslands = schedules.filter((s, i, a) => a.findIndex(t => t.destination === s.destination) === i);
+            let listHtml = '<div style="padding:1rem;">' + uniqueIslands.map(island => 
+                `<div style="padding:0.4rem 0;"><a href="${island.wikiUrl}" target="_blank" class="text-blue hover:underline">${island.destination}</a></div>`
+            ).join('') + '</div>';
+            showModal('Daftar Pulau Tujuan', listHtml);
+        }
+
+        function showMyTicketsModal() {
+            const userTickets = tickets.filter(ticket => ticket.purchasedBy === currentUser);
+            let content = userTickets.length === 0 ? `<p>Anda belum membeli tiket apa pun.</p>` :
+                `<div class="table-wrapper"><table><thead><tr><th>Kode Tiket</th><th>Kapal</th><th>Tujuan</th><th>Tanggal</th><th>Nama Penumpang</th></tr></thead><tbody>` +
+                userTickets.map(ticket => {
+                    const schedule = schedules[ticket.scheduleIndex];
+                    return `<tr><td>${ticket.code}</td><td>${schedule?.name || "N/A"}</td><td>${schedule?.destination || "-"}</td><td>${schedule?.date || "-"}</td><td>${ticket.name}</td></tr>`;
+                }).join('') + `</tbody></table></div>`;
+            showModal('Tiket Saya', content);
+        }
+        
+        function showAllBookedTicketsModal() {
+            let content;
+            if (tickets.length === 0) {
+                content = `<p>Belum ada tiket yang dipesan.</p>`;
+            } else {
+                const sortedTickets = [...tickets].sort((a, b) => {
+                    const destA = schedules[a.scheduleIndex]?.destination.toLowerCase() || '';
+                    const destB = schedules[b.scheduleIndex]?.destination.toLowerCase() || '';
+                    if (destA < destB) return -1;
+                    if (destA > destB) return 1;
+                    return 0;
+                });
+                const exportButtons = `<div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;"><button class="btn btn-green" id="exportPdfButton">Export ke PDF</button><button class="btn btn-blue" id="exportExcelButton">Export ke Excel</button></div>`;
+                let tableRows = sortedTickets.map(ticket => {
+                    const schedule = schedules[ticket.scheduleIndex];
+                    return `<tr><td>${schedule?.destination || "-"}</td><td>${ticket.code}</td><td>${ticket.name}</td><td>${ticket.email}</td><td>${ticket.purchasedBy}</td></tr>`;
+                }).join('');
+                content = `${exportButtons}<div class="table-wrapper"><table id="bookedTicketsTable"><thead><tr><th>Tujuan</th><th>Kode Tiket</th><th>Nama Penumpang</th><th>Email Kontak</th><th>Dipesan Oleh</th></tr></thead><tbody>${tableRows}</tbody></table></div>`;
+            }
+            showModal('Daftar Semua Tiket Terpesan', content);
+            if (tickets.length > 0) {
+                document.getElementById('exportPdfButton').addEventListener('click', exportTicketsToPdf);
+                document.getElementById('exportExcelButton').addEventListener('click', exportTicketsToExcel);
+            }
+        }
+        
+        function exportTicketsToPdf() {
+            alert("Fitur Ekspor PDF.\nUntuk mengaktifkan, tambahkan library jsPDF & jsPDF-AutoTable ke <head>.\n\nContoh kode:\nconst { jsPDF } = window.jspdf;\nconst doc = new jsPDF();\ndoc.autoTable({ html: '#bookedTicketsTable' });\ndoc.save('daftar-tiket.pdf');");
+        }
+        function exportTicketsToExcel() {
+             alert("Fitur Ekspor Excel.\nUntuk mengaktifkan, tambahkan library SheetJS (xlsx) ke <head>.\n\nContoh kode:\nconst wb = XLSX.utils.table_to_book(document.getElementById('bookedTicketsTable'));\nXLSX.writeFile(wb, 'daftar-tiket.xlsx');");
+        }
+
+        function showAddScheduleModal() {
+            currentEditIndex = null;
+            const content = `<label><strong>Nama Kapal:</strong><input type="text" id="editName"></label><label><strong>Tujuan:</strong><input type="text" id="editDestination"></label><label><strong>Asal:</strong><input type="text" id="editOrigin"></label><label><strong>Tanggal:</strong><input type="date" id="editDate"></label><label><strong>Waktu:</strong><input type="time" id="editTime"></label><label><strong>Harga (Rp):</strong><input type="number" id="editPrice"></label><hr style="margin: 1rem 0;"><h4>Detail Kapal Baru</h4><label><strong>Tipe:</strong><input type="text" id="editDetailType" placeholder="e.g., Speedboat"></label><label><strong>Kapasitas:</strong><input type="number" id="editDetailCapacity" placeholder="e.g., 20"></label><label><strong>Fasilitas:</strong><input type="text" id="editDetailFacilities" placeholder="e.g., AC, Toilet"></label>`;
+            showModal('Tambah Jadwal Baru', content, ['saveScheduleButton']);
+        }
+        
+        function showEditScheduleModal(index) {
+            currentEditIndex = index;
+            const schedule = schedules[index];
+            const content = `<label><strong>Nama Kapal:</strong><input type="text" id="editName" value="${schedule.name}"></label><label><strong>Tujuan:</strong><input type="text" id="editDestination" value="${schedule.destination}"></label><label><strong>Asal:</strong><input type="text" id="editOrigin" value="${schedule.origin}"></label><label><strong>Tanggal:</strong><input type="date" id="editDate" value="${schedule.date}"></label><label><strong>Waktu:</strong><input type="time" id="editTime" value="${schedule.time}"></label><label><strong>Harga:</strong><input type="number" id="editPrice" value="${schedule.price}"></label>`;
+            showModal('Edit Jadwal Kapal', content, ['saveScheduleButton']);
+        }
+
+        function showQuantityModal(index) {
+            currentBuyIndex = index;
+            tempPurchaseData = {};
+            const content = `<label><strong>Jumlah Tiket:</strong><input type="number" id="ticketQuantity" min="1" max="10" value="1" class="input"></label>`;
+            showModal('Pilih Jumlah Tiket', content, ['submitQuantityButton']);
+        }
+
+        function showPersonalDataModal(quantity) {
+            tempPurchaseData.quantity = quantity;
+            let formHtml = `<label><strong>Email Kontak (untuk semua tiket):</strong><input type="email" id="contactEmail"></label>`;
+            for (let i = 1; i <= quantity; i++) {
+                formHtml += `<div class="passenger-form"><h4>Data Penumpang ${i}</h4><label><strong>Nama Lengkap:</strong><input type="text" id="personalName_${i}"></label><label><strong>Tanggal Lahir:</strong><input type="date" id="personalDOB_${i}"></label></div>`;
+            }
+            showModal('Isi Data Diri Penumpang', formHtml, ['submitPersonalDataButton']);
+        }
+
+        function showPaymentModal() {
+            const content = `<label><strong>Metode Pembayaran:</strong><select id="paymentMethod"><option value="" disabled selected>Pilih metode</option><option value="transfer_bank">Transfer Bank</option><option value="kartu_kredit">Kartu Kredit/Debit</option><option value="e_wallet">E-Wallet</option></select></label>`;
+            showModal('Pilih Metode Pembayaran', content, ['submitPaymentButton']);
+        }
+        
+        function showBuyModal() {
+            const schedule = schedules[currentBuyIndex];
+            const quantity = tempPurchaseData.quantity;
+            const totalPrice = schedule.price * quantity;
+            let passengerNames = tempPurchaseData.passengers.map(p => p.name).join(', ');
+            const content = `Anda akan membeli <strong>${quantity} tiket</strong> untuk:<br><strong>Kapal:</strong> ${schedule.name}<br><strong>Tujuan:</strong> ${schedule.destination} (${schedule.date} ${schedule.time})<br><hr style="margin: 0.5rem 0;"><strong>Email Kontak:</strong> ${tempPurchaseData.contactEmail}<br><strong>Penumpang:</strong> ${passengerNames}<br><strong>Harga per Tiket:</strong> Rp ${schedule.price.toLocaleString('id-ID')}<br><strong>Total Harga:</strong> Rp ${totalPrice.toLocaleString('id-ID')}<br><strong>Metode Pembayaran:</strong> ${tempPurchaseData.paymentMethod}`;
+            showModal('Konfirmasi Pembelian Tiket', content, ['confirmButton']);
+        }
+        
+        function showLoginModal() {
+            const content = `<label><strong>Username:</strong><input type="text" id="loginUsername"></label><label><strong>Kata Sandi:</strong><input type="password" id="loginPassword"></label>`;
+            showModal('Login', content, ['loginActionButton', 'registerButton']);
+        }
+        
+        function showRegisterModal() {
+             const content = `<label><strong>Username:</strong><input type="text" id="registerUsername" required></label><label><strong>Email:</strong><input type="email" id="registerEmail" required></label><label><strong>Nomor HP:</strong><input type="tel" id="registerPhone" required></label><label><strong>Kata Sandi:</strong><input type="password" id="registerPassword" required></label><label><strong>Konfirmasi Kata Sandi:</strong><input type="password" id="registerConfirmPassword" required></label>`;
+            showModal('Daftar Akun Baru', content, ['submitRegisterButton']);
+        }
+        
+        function showProfileModal() {
+            const user = users.find(u => u.username === currentUser);
+            if (!user) { alert('Gagal memuat data pengguna.'); return; }
+            const content = `<div class="profile-view"><p><strong>Username:</strong> ${user.username}</p><p><strong>Email:</strong> ${user.email}</p><p><strong>No. HP:</strong> ${user.phone}</p></div><hr><div style="margin-top: 1rem;"><h4>Formulir Edit Profil</h4><label>Username Baru<input type="text" id="profileUsername" value="${user.username}"></label><label>Email Baru<input type="email" id="profileEmail" value="${user.email}"></label><label>No. HP Baru<input type="tel" id="profilePhone" value="${user.phone}"></label><hr style="margin: 1rem 0;"><label>Password Saat Ini (Wajib)<input type="password" id="profileCurrentPassword" placeholder="Masukkan password saat ini" required></label><hr style="margin: 1rem 0;"><label>Password Baru (Kosongkan jika tidak ganti)<input type="password" id="profileNewPassword" placeholder="Masukkan password baru"></label><label>Konfirmasi Password Baru<input type="password" id="profileConfirmPassword" placeholder="Ulangi password baru"></label></div>`;
+            showModal('Profil Pengguna', content, ['saveProfileButton']);
+        }
+
+         // --- FUNGSI EKSPOR YANG SUDAH DIAKTIFKAN ---
+        function exportTicketsToPdf() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.autoTable({ html: '#bookedTicketsTable' });
+            doc.save('daftar-tiket-terpesan.pdf');
+        }
+
+        function exportTicketsToExcel() {
+             const table = document.getElementById('bookedTicketsTable');
+             const wb = XLSX.utils.table_to_book(table);
+             XLSX.writeFile(wb, 'daftar-tiket-terpesan.xlsx');
+        }
+        
+        function showAllBookedTicketsModal() {
+            let content;
+            if (tickets.length === 0) {
+                // Untuk demo, kita buat beberapa tiket dummy jika kosong
+                tickets = [
+                    { code: 'TIX-ABC', name: 'Budi Santoso', email: 'budi@mail.com', purchasedBy: 'user', scheduleIndex: 0},
+                    { code: 'TIX-DEF', name: 'Ani Lestari', email: 'budi@mail.com', purchasedBy: 'user', scheduleIndex: 1},
+                    { code: 'TIX-GHI', name: 'Charlie', email: 'charlie@mail.com', purchasedBy: 'user2', scheduleIndex: 0}
+                ];
+            }
+            
+            const sortedTickets = [...tickets].sort((a, b) => {
+                const destA = schedules[a.scheduleIndex]?.destination.toLowerCase() || '';
+                const destB = schedules[b.scheduleIndex]?.destination.toLowerCase() || '';
+                if (destA < destB) return -1;
+                if (destA > destB) return 1;
+                return 0;
+            });
+
+            const exportButtons = `<div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;"><button class="btn btn-green" id="exportPdfButton">Export ke PDF</button><button class="btn btn-blue" id="exportExcelButton">Export ke Excel</button></div>`;
+            
+            let tableRows = sortedTickets.map(ticket => {
+                const schedule = schedules[ticket.scheduleIndex];
+                return `<tr><td>${schedule?.destination || "-"}</td><td>${ticket.code}</td><td>${ticket.name}</td><td>${ticket.email}</td><td>${ticket.purchasedBy}</td></tr>`;
+            }).join('');
+            content = `${exportButtons}<div class="table-wrapper"><table id="bookedTicketsTable"><thead><tr><th>Tujuan</th><th>Kode Tiket</th><th>Nama Penumpang</th><th>Email Kontak</th><th>Dipesan Oleh</th></tr></thead><tbody>${tableRows}</tbody></table></div>`;
+            
+            showModal('Daftar Semua Tiket Terpesan', content);
+            
+            // Tambahkan event listener setelah modal ditampilkan
+            document.getElementById('exportPdfButton').addEventListener('click', exportTicketsToPdf);
+            document.getElementById('exportExcelButton').addEventListener('click', exportTicketsToExcel);
+        }
+
+        // Fungsi untuk menampilkan detail kapal dari menu
+        function showShipDetailsFromMenu(shipName) {
+            const schedule = schedules.find(s => s.name === shipName);
+            const modal = document.getElementById("modal");
+            const modalTitle = document.getElementById("modalTitle");
+            const modalContent = document.getElementById("modalContent");
+            const confirmButton = document.getElementById("confirmButton");
+            const saveButton = document.getElementById("saveButton");
+            const loginActionButton = document.getElementById("loginActionButton");
+            const registerButton = document.getElementById("registerButton");
+            const submitPersonalDataButton = document.getElementById("submitPersonalDataButton");
+            const submitPaymentButton = document.getElementById("submitPaymentButton");
+            const submitRegisterButton = document.getElementById("submitRegisterButton");
+            const updateCaptainButton = document.getElementById("updateCaptainButton");
+            const updateDishubButton = document.getElementById("updateDishubButton");
+            const verifyTicketButton = document.getElementById("verifyTicketButton");
+            const closeButton = document.getElementById("closeButton");
+
+            modalTitle.textContent = `Detail Kapal: ${schedule.name}`;
+            modalContent.innerHTML = `
+                <strong>Tipe Kapal:</strong> ${schedule.details.type}<br>
+                <strong>Kapasitas:</strong> ${schedule.details.capacity} penumpang<br>
+                <strong>Fasilitas:</strong> ${schedule.details.facilities}<br>
+                <strong>Tujuan:</strong> <a href="${schedule.wikiUrl}" target="_blank" class="text-blue hover:underline" aria-label="Kunjungi halaman Wikipedia ${schedule.destination}">${schedule.destination}</a><br>
+                <strong>Tempat Asal:</strong> ${schedule.origin}<br>
+                <strong>Status Keberangkatan:</strong> ${schedule.departureStatus}<br>
+                <strong>Status Persetujuan:</strong> ${schedule.approvalStatus}<br>
+                <strong>Kapten:</strong> ${schedule.assignedCaptain}
+            `;
+            confirmButton.classList.add("hidden");
+            saveButton.classList.add("hidden");
+            loginActionButton.classList.add("hidden");
+            registerButton.classList.add("hidden");
+            submitPersonalDataButton.classList.add("hidden");
+            submitPaymentButton.classList.add("hidden");
+            submitRegisterButton.classList.add("hidden");
+            updateCaptainButton.classList.add("hidden");
+            updateDishubButton.classList.add("hidden");
+            verifyTicketButton.classList.add("hidden");
+            modal.classList.remove("hidden");
+
+            closeButton.onclick = () => modal.classList.add("hidden");
+        }
+
+        // Fungsi untuk menampilkan detail kapal dari tabel
+        function showShipDetails(event) {
+            const index = event.target.getAttribute("data-index");
+            const schedule = schedules[index];
+            const modal = document.getElementById("modal");
+            const modalTitle = document.getElementById("modalTitle");
+            const modalContent = document.getElementById("modalContent");
+            const confirmButton = document.getElementById("confirmButton");
+            const saveButton = document.getElementById("saveButton");
+            const loginActionButton = document.getElementById("loginActionButton");
+            const registerButton = document.getElementById("registerButton");
+            const submitPersonalDataButton = document.getElementById("submitPersonalDataButton");
+            const submitPaymentButton = document.getElementById("submitPaymentButton");
+            const submitRegisterButton = document.getElementById("submitRegisterButton");
+            const updateCaptainButton = document.getElementById("updateCaptainButton");
+            const updateDishubButton = document.getElementById("updateDishubButton");
+            const verifyTicketButton = document.getElementById("verifyTicketButton");
+            const closeButton = document.getElementById("closeButton");
+
+            modalTitle.textContent = `Detail Kapal: ${schedule.name}`;
+            modalContent.innerHTML = `
+                <strong>Tipe Kapal:</strong> ${schedule.details.type}<br>
+                <strong>Kapasitas:</strong> ${schedule.details.capacity} penumpang<br>
+                <strong>Fasilitas:</strong> ${schedule.details.facilities}<br>
+                <strong>Tujuan:</strong> <a href="${schedule.wikiUrl}" target="_blank" class="text-blue hover:underline" aria-label="Kunjungi halaman Wikipedia ${schedule.destination}">${schedule.destination}</a><br>
+                <strong>Tempat Asal:</strong> ${schedule.origin}<br>
+                <strong>Status Keberangkatan:</strong> ${schedule.departureStatus}<br>
+                <strong>Status Persetujuan:</strong> ${schedule.approvalStatus}<br>
+                <strong>Kapten:</strong> ${schedule.assignedCaptain}
+            `;
+            confirmButton.classList.add("hidden");
+            saveButton.classList.add("hidden");
+            loginActionButton.classList.add("hidden");
+            registerButton.classList.add("hidden");
+            submitPersonalDataButton.classList.add("hidden");
+            submitPaymentButton.classList.add("hidden");
+            submitRegisterButton.classList.add("hidden");
+            updateCaptainButton.classList.add("hidden");
+            updateDishubButton.classList.add("hidden");
+            verifyTicketButton.classList.add("hidden");
+            modal.classList.remove("hidden");
+
+            closeButton.onclick = () => modal.classList.add("hidden");
+        }
+
+        // === EVENT LISTENERS ===
+        function attachTableEventListeners() {
+             document.querySelectorAll(".ship-name").forEach(el => el.addEventListener("click", (e) => showShipDetails(e.target.dataset.index)));
+             document.querySelectorAll(".buy-button").forEach(el => el.addEventListener("click", (e) => {
+                 if (!isUserLoggedIn) { alert("Anda harus login untuk membeli tiket."); showLoginModal(); } 
+                 else { showQuantityModal(e.target.dataset.index); }
+             }));
+             document.querySelectorAll(".edit-button").forEach(el => el.addEventListener("click", (e) => showEditScheduleModal(e.target.dataset.index)));
+        }
+
+        document.getElementById('navLoginLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (isUserLoggedIn || isAdminMode || isCaptainMode || isDishubMode || isCheckerMode) {
+                isUserLoggedIn = isAdminMode = isCaptainMode = isDishubMode = isCheckerMode = false;
+                currentUser = null;
+                document.getElementById('addShipButton').classList.add('hidden');
+                updateNavBar(); populateTable();
+                alert("Logout berhasil!");
+            } else { showLoginModal(); }
+        });
+        document.getElementById('navProfileLink').addEventListener('click', (e) => { e.preventDefault(); showProfileModal(); });
+        document.getElementById('navKapalLink').addEventListener('click', (e) => { e.preventDefault(); showShipListModal(); });
+        document.getElementById('navPulauLink').addEventListener('click', (e) => { e.preventDefault(); showIslandListModal(); });
+        document.getElementById('navMyTicketsLink').addEventListener('click', (e) => { e.preventDefault(); showMyTicketsModal(); });
+        document.getElementById('navAllTicketsLink').addEventListener('click', (e) => { e.preventDefault(); showAllBookedTicketsModal(); });
+        
+        document.getElementById('closeButton').addEventListener('click', () => modal.classList.add("hidden"));
+        
+        document.getElementById('saveScheduleButton').addEventListener('click', () => {
+            const name = modal.querySelector('#editName').value;
+            const destination = modal.querySelector('#editDestination').value;
+            const origin = modal.querySelector('#editOrigin').value;
+            const date = modal.querySelector('#editDate').value;
+            const time = modal.querySelector('#editTime').value;
+            const price = parseInt(modal.querySelector('#editPrice').value);
+            if(!name || !destination || !origin || !date || !time || isNaN(price)) { alert("Semua data jadwal harus diisi dengan benar!"); return; }
+            if (currentEditIndex !== null) {
+                schedules[currentEditIndex] = { ...schedules[currentEditIndex], name, destination, origin, date, time, price };
+                alert("Jadwal berhasil diperbarui!");
+            } else {
+                 const type = modal.querySelector('#editDetailType').value;
+                 const capacity = parseInt(modal.querySelector('#editDetailCapacity').value);
+                 const facilities = modal.querySelector('#editDetailFacilities').value;
+                 if(!type || isNaN(capacity) || !facilities) { alert("Detail kapal baru harus diisi lengkap!"); return; }
+                 const newSchedule = { name, destination, origin, date, time, price, details: {type, capacity, facilities}, wikiUrl: "#", departureStatus: "Menunggu", approvalStatus: "Menunggu Persetujuan" };
+                 schedules.push(newSchedule);
+                 alert("Jadwal baru berhasil ditambahkan!");
+            }
+            populateTable();
+            modal.classList.add('hidden');
+        });
+
+        document.getElementById('loginActionButton').addEventListener('click', () => {
+            const username = modal.querySelector("#loginUsername").value.trim();
+            const password = modal.querySelector("#loginPassword").value;
+            let loginSuccess = false;
+            let alertMessage = "Username atau kata sandi salah!";
+            if (users.find(u => u.username === username && u.password === password)) {
+                isUserLoggedIn = true; loginSuccess = true; alertMessage = "Login pengguna berhasil!";
+            } else if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+                isAdminMode = true; loginSuccess = true; alertMessage = "Login admin berhasil!";
+                document.getElementById('addShipButton').classList.remove('hidden');
+            } else if (captains.find(c => c.username === username && c.password === password)) {
+                isCaptainMode = true; loginSuccess = true; alertMessage = "Login kapten berhasil!";
+            } else if (dishub.find(d => d.username === username && d.password === password)) {
+                isDishubMode = true; loginSuccess = true; alertMessage = "Login DISHUB berhasil!";
+            } else if (checkers.find(c => c.username === username && c.password === password)) {
+                isCheckerMode = true; loginSuccess = true; alertMessage = "Login checker berhasil!";
+            }
+            if (loginSuccess) {
+                currentUser = username; alert(alertMessage); modal.classList.add("hidden"); updateNavBar(); populateTable();
+            } else { alert(alertMessage); }
+        });
+
+        document.getElementById('submitQuantityButton').addEventListener('click', () => {
+            const quantity = parseInt(modal.querySelector('#ticketQuantity').value);
+            if(quantity > 0 && quantity <= 10) { showPersonalDataModal(quantity); } else { alert("Jumlah tiket tidak valid (1-10).");}
+        });
+
+        document.getElementById('submitPersonalDataButton').addEventListener('click', () => {
+            const contactEmail = modal.querySelector('#contactEmail').value.trim();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) { alert('Format email kontak tidak valid!'); return; }
+            tempPurchaseData.contactEmail = contactEmail;
+            const passengers = [];
+            for(let i=1; i<=tempPurchaseData.quantity; i++) {
+                const name = modal.querySelector(`#personalName_${i}`).value.trim();
+                const dob = modal.querySelector(`#personalDOB_${i}`).value;
+                if (!name || !dob) { alert(`Nama dan tanggal lahir untuk penumpang ${i} harus diisi!`); return; }
+                if (new Date().getFullYear() - new Date(dob).getFullYear() < 12) { alert(`Usia penumpang ${i} harus minimal 12 tahun!`); return; }
+                passengers.push({ name, dob });
+            }
+            tempPurchaseData.passengers = passengers;
+            showPaymentModal();
+        });
+
+        document.getElementById('submitPaymentButton').addEventListener('click', () => {
+            const paymentMethod = modal.querySelector('#paymentMethod').value;
+            if (!paymentMethod) { alert("Pilih metode pembayaran!"); return; }
+            tempPurchaseData.paymentMethod = paymentMethod;
+            showBuyModal();
+        });
+
+        document.getElementById('confirmButton').addEventListener('click', () => {
+            const generatedTickets = [];
+            tempPurchaseData.passengers.forEach(passenger => {
+                const ticket = { code: generateTicketCode(), scheduleIndex: currentBuyIndex, purchasedBy: currentUser, name: passenger.name, email: tempPurchaseData.contactEmail, dob: passenger.dob, verificationStatus: "Belum Diverifikasi" };
+                tickets.push(ticket);
+                generatedTickets.push(ticket.code);
+            });
+            alert(`${generatedTickets.length} tiket berhasil dibuat!\nKode Tiket: ${generatedTickets.join(', ')}`);
+            modal.classList.add("hidden");
+        });
+        
+        document.getElementById('saveProfileButton').addEventListener('click', () => {
+            const userObject = users.find(u => u.username === currentUser);
+            if (!userObject) { alert("Gagal menemukan data pengguna."); return; }
+            const currentPassword = modal.querySelector('#profileCurrentPassword').value;
+            if (currentPassword !== userObject.password) { alert("Password saat ini yang Anda masukkan salah!"); return; }
+            const newUsername = modal.querySelector('#profileUsername').value.trim();
+            const newEmail = modal.querySelector('#profileEmail').value.trim();
+            const newPhone = modal.querySelector('#profilePhone').value.trim();
+            const newPassword = modal.querySelector('#profileNewPassword').value;
+            const confirmPassword = modal.querySelector('#profileConfirmPassword').value;
+            if (newUsername !== currentUser) {
+                if (!newUsername) { alert("Username baru tidak boleh kosong."); return; }
+                if (users.some(u => u.username === newUsername && u.username !== currentUser) || newUsername === ADMIN_CREDENTIALS.username) { alert("Username baru sudah digunakan oleh pengguna lain."); return; }
+                userObject.username = newUsername;
+                currentUser = newUsername;
+            }
+            if(newEmail !== userObject.email) {
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) { alert("Format email baru tidak valid!"); return; }
+                 if (users.some(u => u.email === newEmail && u.username !== currentUser)) { alert("Email baru sudah digunakan oleh pengguna lain."); return; }
+                userObject.email = newEmail;
+            }
+            if(newPhone !== userObject.phone) {
+                 if (!/^\d+$/.test(newPhone)) { alert("Nomor HP baru harus berisi angka!"); return; }
+                 userObject.phone = newPhone;
+            }
+            if (newPassword) {
+                if (newPassword !== confirmPassword) { alert("Konfirmasi password baru tidak cocok."); return; }
+                userObject.password = newPassword;
+            }
+            alert("Profil berhasil diperbarui!");
+            modal.classList.add('hidden');
+        });
+        
+        document.getElementById('registerButton').addEventListener('click', showRegisterModal);
+        
+        document.getElementById('submitRegisterButton').addEventListener('click', () => {
+            const username = modal.querySelector("#registerUsername").value.trim();
+            const email = modal.querySelector("#registerEmail").value.trim();
+            const phone = modal.querySelector("#registerPhone").value.trim();
+            const password = modal.querySelector("#registerPassword").value;
+            if (!username || !email || !phone || !password) { alert("Semua kolom harus diisi!"); return; }
+            if (password !== modal.querySelector("#registerConfirmPassword").value) { alert("Kata sandi tidak cocok!"); return; }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert("Format email tidak valid!"); return; }
+            if (!/^\d+$/.test(phone)) { alert("Nomor HP harus berisi angka!"); return; }
+            if (users.some(u => u.username === username)) { alert("Username sudah terdaftar!"); return; }
+            if (users.some(u => u.email === email)) { alert("Email sudah terdaftar!"); return; }
+            users.push({ username, password, email, phone });
+            alert("Pendaftaran berhasil! Silakan login.");
+            showLoginModal();
+        });
+
+        // Inisialisasi
+        document.addEventListener('DOMContentLoaded', () => {
+            populateTable();
+            updateNavBar();
+        });
+    </script>
+</body>
+</html>
